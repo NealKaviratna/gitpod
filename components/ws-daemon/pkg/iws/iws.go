@@ -142,10 +142,13 @@ func (wbs *InWorkspaceServiceServer) Start() error {
 	if err != nil {
 		return xerrors.Errorf("cannot create IWS socket: %w", err)
 	}
+
 	err = os.Chmod(socketFN, 0777)
 	if err != nil {
 		return xerrors.Errorf("cannot chmod IWS socket: %w", err)
 	}
+
+	wbs.sckt = sckt
 
 	limits := ratelimitingInterceptor{
 		"/iws.InWorkspaceService/PrepareForUserNS": ratelimit{
@@ -159,10 +162,10 @@ func (wbs *InWorkspaceServiceServer) Start() error {
 		},
 	}
 
-	srv := grpc.NewServer(grpc.ChainUnaryInterceptor(limits.UnaryInterceptor()))
-	api.RegisterInWorkspaceServiceServer(srv, wbs)
+	wbs.srv = grpc.NewServer(grpc.ChainUnaryInterceptor(limits.UnaryInterceptor()))
+	api.RegisterInWorkspaceServiceServer(wbs.srv, wbs)
 	go func() {
-		err := srv.Serve(sckt)
+		err := wbs.srv.Serve(sckt)
 		if err != nil {
 			log.WithError(err).WithFields(wbs.Session.OWI()).Error("IWS server failed")
 		}
@@ -172,8 +175,10 @@ func (wbs *InWorkspaceServiceServer) Start() error {
 
 // Stop stops the service and closes the socket
 func (wbs *InWorkspaceServiceServer) Stop() {
+	log.Debug("Stopping grpc InWorkspaceServiceServer 1")
 	defer wbs.sckt.Close()
 	wbs.srv.GracefulStop()
+	log.Debug("Stopping grpc InWorkspaceServiceServer 2")
 }
 
 // PrepareForUserNS mounts the workspace's shiftfs mark
