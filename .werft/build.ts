@@ -197,6 +197,7 @@ export async function deployToDev(deploymentConfig: DeploymentConfig, workspaceF
     const wsdaemonPort = `1${Math.floor(Math.random()*1000)}`;
     const registryProxyPort = `2${Math.floor(Math.random()*1000)}`;
     const registryNodePort = `${30000 + Math.floor(Math.random()*1000)}`;
+    const helmInstallName = "gitpod";
 
     // trigger certificate issuing
     werft.log('certificate', "organizing a certificate for the preview environment...");
@@ -220,7 +221,7 @@ export async function deployToDev(deploymentConfig: DeploymentConfig, workspaceF
 
     // re-create namespace
     try {
-        wipeAndRecreateNamespace(namespace, {slice: 'prep'});
+        wipeAndRecreateNamespace(helmInstallName, namespace, {slice: 'prep'});
         setKubectlContextNamespace(namespace, {slice: 'prep'});
         namespaceRecreatedResolve();    // <-- signal for certificate
         werft.done('prep');
@@ -332,7 +333,7 @@ export async function deployToDev(deploymentConfig: DeploymentConfig, workspaceF
         }
         
         exec(`helm dependencies up`);
-        exec(`/usr/local/bin/helm3 upgrade --install --timeout 10m -f ../.werft/values.dev.yaml ${flags} gitpod .`);
+        exec(`/usr/local/bin/helm3 upgrade --install --timeout 10m -f ../.werft/values.dev.yaml ${flags} ${helmInstallName} .`);
 
         werft.log('helm', 'installing Jaeger');
         exec(`/usr/local/bin/helm3 upgrade --install -f ../dev/charts/jaeger/values.yaml ${flags} jaeger ../dev/charts/jaeger`);
