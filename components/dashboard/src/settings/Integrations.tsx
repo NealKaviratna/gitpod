@@ -5,6 +5,7 @@
  */
 
 import { AuthProviderEntry, AuthProviderInfo } from "@gitpod/gitpod-protocol";
+import { SelectAccountPayload } from "@gitpod/gitpod-protocol/lib/auth";
 import React, { useContext, useEffect, useState } from "react";
 import ContextMenu, { ContextMenuEntry } from "../components/ContextMenu";
 import { getGitpodService, gitpodHostUrl } from "../service/service";
@@ -152,7 +153,25 @@ function GitProviders() {
 
     const doAuthorize = async (host: string, scopes?: string[]) => {
         try {
-            await openAuthorizeWindow({ host, scopes, onSuccess: () => updateUser() });
+            await openAuthorizeWindow({
+                host,
+                scopes,
+                onSuccess: () => updateUser(),
+                onError: (error) => {
+                    if (typeof error === "string" && error.startsWith("payload:")) {
+                        const payloadString = error.substring("payload:".length);
+                        try {
+                            const payload = JSON.parse(atob(payloadString));
+                            if (SelectAccountPayload.is(payload)) {
+                                console.log("SelectAccountPayload")
+                                console.log(payload)
+                            }
+                        } catch (error) {
+                            console.log(error);
+                        }
+                    }
+                }
+            });
         } catch (error) {
             console.log(error)
         }

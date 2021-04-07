@@ -36,7 +36,7 @@ function simplifyProviderName(host: string) {
     }
 }
 
-async function openAuthorizeWindow({ host, scopes, onSuccess, onError }: { host: string, scopes?: string[], onSuccess?: () => void, onError?: (error?: string) => void }) {
+async function openAuthorizeWindow({ host, scopes, onSuccess, onError }: { host: string, scopes?: string[], onSuccess?: (payload?: string) => void, onError?: (error?: string) => void }) {
     const returnTo = gitpodHostUrl.with({ pathname: 'login-success' }).toString();
     const url = gitpodHostUrl.withApi({
         pathname: '/authorize',
@@ -53,16 +53,25 @@ async function openAuthorizeWindow({ host, scopes, onSuccess, onError }: { host:
     const eventListener = (event: MessageEvent) => {
         // todo: check event.origin
 
-        if (event.data === "auth-success") {
+        const done = () => {
             window.removeEventListener("message", eventListener);
-
+    
             if (event.source && "close" in event.source && event.source.close) {
                 console.log(`Authorization OK. Closing child window.`);
                 event.source.close();
             } else {
-                // todo: add a button to the /login-success page to close, if this should not work as expected
+                // todo: add a "close" button
             }
+        }
+
+        if (event.data === "auth-success") {
+            done();
             onSuccess && onSuccess();
+        }
+
+        if (typeof event.data === "string" && event.data.startsWith("select-account:")) {
+            done();
+            onError && onError(event.data.substring("select-account:".length));
         }
     };
     window.addEventListener("message", eventListener);
